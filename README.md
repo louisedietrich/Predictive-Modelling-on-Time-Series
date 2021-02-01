@@ -20,13 +20,13 @@ We can observe the long increasing trend, the seasonality and the random compone
 
 We firstly performed a log transformation to eliminate the non constant variance
 
-![](Images/log transf.JPG)
+![](Images/log%20transf.JPG)
 
 Looking at the ACF & PACF of the time series, there is still no stationarity so we proceeded to a first order difference to eliminate the stochastic trend.
 
 ##### First order difference
 
-![](Images/first order diff.JPG)
+![](Images/first%20order%20diff.JPG)
 
 Ploting the ACF & PACF we see that there still is a seasonality trend on our time series, so it is not yet stationary.
 
@@ -34,7 +34,7 @@ Ploting the ACF & PACF we see that there still is a seasonality trend on our tim
 
 We performed a difference of lag 12 to eliminate that seasonality.
 
-![](Images/diff lag 12.JPG)
+![](Images/diff%20lag%2012.JPG)
 
 ### Box-Jenkins methodology
 
@@ -42,12 +42,12 @@ After making our time series we used the Box-Jenkins methodology to find the bes
 
 We tried a first arima modelling analyzing the ACF and PACF of the time series. 
 
-![](Images/acf pacf.JPG)
+![](Images/acf%20pacf.JPG)
 
 We used p = q = 2, and P = Q = d = D = 1
 
 ![](Images/mod1.JPG)
-![](Images/pvalue mod1.JPG)
+![](Images/pvalue%20mod1.JPG)
 
 The p-values of coefficients relating to the auto regressive model (ar1, ar2 and sar1) & ma2 are > 5%, so not significant. We remove them and re-estimate the p and q orders to have a more relevant model. 
 
