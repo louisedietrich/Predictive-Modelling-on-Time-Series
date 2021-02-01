@@ -1,0 +1,230 @@
+#-------------------------
+# Sydney Airport traffic
+#-------------------------
+
+# Import data
+SydneyData <- read.csv('sydney_airport.csv')
+str(SydneyData)
+
+# Read the data as a time series
+traffic.ts <- ts(SydneyData$Traffic, start=c(2009,1), frequency=12)
+traffic.ts
+str(traffic.ts)
+# Starting date
+start(traffic.ts)
+# Ending date
+end(traffic.ts)
+# Frequency
+frequency(traffic.ts)
+#Date in fraction of year with respect to month unit 1/12
+time(traffic.ts)
+
+par(mfrow=c(1,1))
+plot.ts(traffic.ts, xlab='date (monthly)', ylab='traffic', main= 'Traffic at Sydney airport')
+
+# Decomposition of a time series
+traffic.decomposed <- decompose(traffic.ts)
+plot(traffic.decomposed)
+
+# Visualization of the frequency
+monthplot(traffic.ts)
+
+#ACF
+acf(SydneyData$Traffic)
+
+# Ljung-Box Test
+Box.test(traffic.ts, lag=12, type="Ljung-Box") 
+
+
+### STATIONARITY
+
+#plots raw data, acf and pacf
+plot.ts(traffic.ts)
+acf(ts(traffic.ts, frequency=1))
+pacf(ts(traffic.ts, frequency=1))
+
+#There's not stationarity: we transform the time series:
+#Non constant variance: log transformation
+#Trend: 1st order difference to remove the trend
+#Seasonality of 12 months: difference of order 12 to remove seasonality
+
+#log transformation: to eliminate non constant variance
+ltraf <- log(traffic.ts)
+par(mfrow=c(1,1))
+plot(cbind(traffic.ts,ltraf), main='Traffic and log tansformation')
+plot(ltraf, main ='Log transformation')
+par(mfrow=c(1,2))
+acf(ts(ltraf,frequency=1))
+pacf(ts(ltraf, frequency=1))
+
+#1st order diff: remove the trend
+dltraf <- diff(ltraf,1)
+par(mfrow=c(1,1))
+plot(dltraf, main ='First order difference')
+par(mfrow=c(1,2))
+acf(ts(dltraf, frequency=1))
+pacf(ts(dltraf, frequency=1))
+
+# Diff of order 12: remove seasonality
+dltraf_12 <- diff(dltraf,12)
+par(mfrow=c(1,1))
+plot(dltraf_12, main = 'Difference lag 12')
+par(mfrow=c(1,2))
+acf(ts(dltraf_12,frequency=1), lag.max = 40)
+pacf(ts(dltraf_12, frequency=1), lag.max = 40)
+par(mfrow=c(1,1))
+acf(ts(dltraf_12,frequency=1), lag.max = 40)
+pacf(ts(dltraf_12, frequency=1), lag.max = 40)
+
+#----------------------------------------
+# Step1: Identification of orders p and q
+#----------------------------------------
+#install.packages('TSA')
+library(TSA)
+# p = 2, d = 1, q = 2
+# P = 1, D = 1, Q = 1
+
+mod1 <- arima(ltraf, c(2, 1, 2), seasonal = list(order = c(1, 1, 1), period = 12), method='ML')
+mod1
+
+# Plot of the fitted value
+fit1 <- fitted(mod1)
+par(mfrow=c(1,1))
+plot.ts(cbind(ltraf,fit1),plot.type='single',col=c('black','red'), main = "Fitted value")
+# It seems a good model but we need to validate it and if the coefficient are not significants
+# we will try to find an other model with a better aic
+
+#-------------------------------
+# step3: Validation of the model
+#-------------------------------
+
+## Significance of the coefficients ##
+mod1$coef
+mod1$var.coef
+tstat <- mod1$coef/sqrt(diag(mod1$var.coef))
+tstat
+pvalue <- 2*(1-pnorm(abs(tstat)))
+tstat
+pvalue
+# p-value < 5% for ma1 and sma1, so they are significant
+# The coefficients related to AR (ar1, ar2 and sar1) and ma2 are not significant
+# We remove those coefficients and re-estimate the others and see if we have a better model looking at the aic
+
+#----------------------------------------------------
+# Identification of orders p and q for a better model
+#----------------------------------------------------
+#install.packages('TSA')
+library(TSA)
+# p = 0, d = 1, q = 1
+# P = 0, D = 1, Q = 1
+mod1 <- arima(ltraf, c(0, 1, 1), seasonal = list(order = c(0, 1, 1), period = 12), method='ML')
+mod1
+
+### Script in parentesys: in this part we tryed an other model with an alternative way to compute it
+# Trying a model 2 with backward elimination:
+# we took the mod1 at the beginning (2,1,2)(1,1,1) and we eliminated the coefficients one by one (not all at the same time)
+# starting from the less significant until we had all the coefficients significant
+mod2 <- arima(ltraf, c(1, 1, 2), seasonal = list(order = c(0, 1, 1), period = 12), method='ML')
+mod2
+mod2$coef
+mod2$var.coef
+tstat <- mod2$coef/sqrt(diag(mod2$var.coef))
+tstat
+pvalue <- 2*(1-pnorm(abs(tstat)))
+tstat
+pvalue
+# We decided then to use the mod1 (0,1,1)(0,1,1) because we had a better aic (-627.89 against -625.49)
+###
+
+# We have a better model in terms of aic 
+# now mod1(0,1,1)(0,1,1) has aic = -627.89
+# the first mod1(2,1,2)(1,1,1) has aic = -621.66
+
+# Plot of the fitted value
+fit1 <- fitted(mod1)
+par(mfrow=c(1,1))
+plot.ts(cbind(ltraf,fit1),plot.type='single',col=c('black','red'), main = "Fitted value")
+
+#-------------------------------
+# Validation of the model (mod1)
+#-------------------------------
+
+## Significance of the coefficients ##
+mod1$coef
+mod1$var.coef
+tstat <- mod1$coef/sqrt(diag(mod1$var.coef))
+tstat
+pvalue <- 2*(1-pnorm(abs(tstat)))
+tstat
+pvalue
+# All the coefficients are significants, we can proceed with the residual analysis
+
+## Residuals analysis ##
+res1 <- mod1$residuals
+plot(res1, main = "Residuals")
+
+# Check the normal distribution
+library(tseries)
+jarque.bera.test(res1)
+shapiro.test(res1)
+#Both tests with p-value>5% so the residuals follow a normal distribution
+# Normal distribution
+res_norm <- res1/sqrt(mod1$sigma2)
+summary(res_norm)
+# T-test for the average of the residuals: should lie between -2 and 2 to assume the mean = 0
+mean(res_norm)*sqrt(length(res_norm))
+# We can assume the residual mean = 0
+plot(res_norm) 
+abline(a=2,b=0,col="red")
+abline(a=-2,b=0,col="red")
+min(res_norm)
+max(res_norm)
+hist(res1)  
+qqnorm(res1)  
+qqline(res1)
+
+# Autocorrelation of the residuals (White noise assumption)
+acf(ts(res1, frequency=1))
+pacf(ts(res1, frequency=1))
+# I would expect to have all the coefficients non significant to have a white noise
+# 3 coefficients over 21 analysed are significant (lag 8, lag 14 and lag 20)
+Box.test(res1,lag=12,type="Ljung-Box")
+# p-value > 5%, we can accept the white noise assumption
+
+# Homoscedasticity
+sq.res <- (res1)^2
+acf(ts(sq.res,frequency=1), lag.max = 40)
+#install.packages('TSA')
+library(TSA)
+Htest <- McLeod.Li.test(mod1, plot=T)
+Htest
+
+summary(res1)
+#------------------
+# Step4: Prediction
+#------------------
+
+# Quality of the fit
+cb80 <- mod1$sigma2^.5*qnorm(0.9)
+plot(cbind(ltraf,fit1-cb80,fit1+cb80),plot.type='single',lty=c(1,2,2), main = "Quality of the fit")
+
+# Proportion of points in the confidence bound
+indi <- (ltraf-(fit1-cb80))>0&(fit1+cb80-ltraf)>0
+prop <- 100*sum(indi)/length(indi)
+prop
+# Because prop >80%, then the fit is considered good!
+
+
+# Prediction 
+
+#?predict
+pred <- predict(mod1, n.ahead = 12)
+values_predicted <- 2.718^pred$pred
+values_predicted
+ts.plot(traffic.ts,2.718^pred$pred, log = "y", lty = c(1,3))
+time(traffic.ts)
+ts.plot(traffic.ts,xlim=c(2009,2020.500), main = "Forecasting")
+lines(2.718^(pred$pred), col="red")
+lines(2.718^(pred$pred-1.96*pred$se),col=4,lty=2)
+lines(2.718^(pred$pred+1.96*pred$se),col=4,lty=2)
+
