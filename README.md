@@ -6,7 +6,7 @@ We used this data to predict the number of passengers that would frequent the ai
 
 ### Plot of the time series
 
-![](Images/plot ts.JPG)
+![](Images/plot%20ts.JPG)
 
 ### Decomposition of the additive time series
 
